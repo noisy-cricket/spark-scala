@@ -1,4 +1,4 @@
-package sdp.spark.start
+package learn.start
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
