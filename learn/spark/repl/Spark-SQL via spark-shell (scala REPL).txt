@@ -1,0 +1,82 @@
+1. Start the Spark Shell REPL by using ./bin/spark-shell
+
+2. Within REPL copy-paste the following class:
+Take a few minutes ti review and understand the below class so you know what we are working with.
+
+import org.apache.spark.SparkContext import org.apache.spark.SparkContext._  import org.apache.spark.sql._
+object BigData01 {
+    case class Order(OrderID : String, CustomerID : String, EmployeeID : String, OrderDate : String, ShipCountry : String)
+    case class OrderDetails(OrderID : String, ProductID : String, UnitPrice : Float, Qty : Int, Discount : Float)
+    def main(args: Array[String]): Unit = {
+        val sc = new SparkContext("local","Spark-SQL-1")
+        println(s"Running Spark Version ${sc.version}")
+    }
+}
+
+3. Continue with the following instructions one-by-one:
+
+//Getting the context.
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+//Imports needed for SQLContext.
+import sqlContext.createSchemaRDD 
+import sqlContext._
+
+//Load Order file. You may want to make sure its available in the folder indicated below.
+val ordersFile = sc.textFile("files/NW-Orders-NoHdr.csv")
+
+//Print Number of lines in Order file loaded.
+println("Orders File has %d Lines.".format(ordersFile.count()))
+
+//getting individual values from csv file columns into the defined Class Order.
+val orders = ordersFile.map(_.split(",")).map(e => BigData01.Order( e(0), e(1), e(2),e(3), e(4)))
+
+//Print the count from the loaded Order Class, and make sure it matches whats in the file.
+println(orders.count)
+
+//In order to use the Class as a 'Table', you need to register as a Temp Table.
+orders.registerTempTable("Orders")
+
+//Now run an SQL to display all Orders.
+var result = sqlContext.sql("SELECT * from Orders")
+
+//Display first 10 records from that result.
+result.take(10).foreach(println)
+
+//Load the Order Details file.
+val orderDetFile = sc.textFile("files/NW-Order-Details-NoHdr.csv")
+
+//Count and print the number of lines in the Order Details file.
+println("Order Details File has %d Lines.".format(orderDetFile.count()))
+
+//getting individual values from csv file columns into the defined Class OrderDetails.
+val orderDetails = orderDetFile.map(_.split(",")).map(e => BigData01.OrderDetails( e(0), e(1), e(2).trim.toFloat,e(3).trim.toInt, e(4).trim.toFloat ))
+//Note the trim in the input.
+
+//Print the count from the loaded OrderDetails Class, and make sure it matches whats in the file.
+println(orderDetails.count)
+
+//In order to use the Class as a 'Table', you need to register as a Temp Table.
+orderDetails.registerTempTable("OrderDetails")
+
+//Now run an SQL to display all Order Details.
+result = sqlContext.sql("SELECT * from OrderDetails")
+
+//Display first 10 records from that result.
+result.take(10).foreach(println)
+
+//This is how we run a full-fledged SQL query in Spark.
+result = sqlContext.sql("SELECT OrderDetails.OrderID,ShipCountry,UnitPrice,Qty,Discount FROM Orders INNER JOIN OrderDetails ON Orders.OrderID = OrderDetails.OrderID")
+
+//Display first 10 records from that result.
+result.take(10).foreach(println)
+
+//Displaying as fixed with using 'format'.
+result.take(10).foreach(e=>println("%s | %15s | %5.2f | %d | %5.2f |".format(e(0),e(1),e(2),e(3),e(4))))
+
+//A lot of SQL features are available, not complete yet. With new releases more features come through.
+result = sqlContext.sql("SELECT ShipCountry, Sum (OrderDetails.UnitPrice * Qty * Discount )  AS ProductSales  FROM Orders INNER JOIN OrderDetails ON Orders.OrderID = OrderDetails.OrderID GROUP BY ShipCountry")
+//You can mix up MLLIB, Graph, etc. with SQL, so capability is beyond regular plain-vanilla SQL.
+
+//Displaying as fixed with using 'format'.
+result.take(10).foreach(println)
